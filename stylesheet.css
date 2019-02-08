@@ -1,0 +1,72 @@
+
+canvas{
+	position: absolute;
+	top:0;
+	left:0;
+	z-index:0;
+	cursor:none;
+}
+#score-div{
+	width:100%;
+	color:white;
+	padding:0 2% 0 2%
+	text-decoration: underline;
+}
+#score {
+	display:inline;
+	font-size:350%;
+	background-color:rgba(0,0,0,0.2);
+	padding: 0px 6px 0px 6px;
+	border-radius: 15px;
+	font-family:"Brush Script MT";
+	word-wrap: break-word;
+	color:white;
+	z-index: 2;
+	size: 25;
+	position: relative;
+	pointer-events: none;
+}
+#gameOver {
+	z-index:1;
+	font-family:"Brush Script MT";
+	visibility:hidden;
+	color:white;
+	font-size:1000%;
+	position:fixed;
+	padding:0;
+	top:-20%;
+	left:25%;
+	pointer-events: none;
+}
+#div-help{
+	width:100%;
+	background-color:red;
+	position:relative;
+}
+#help {
+	background-color:rgba(20,20,20,0.6);
+	text-align:center;
+	position: absolute;
+	color: white; 
+	top: 50%;
+	left: 50%;
+	transform: translate( -50%);
+	z-index:2;
+	width:80%;
+	font-size:200%;
+	border-radius: 15px;
+	visibility:hidden;
+}
+#header{
+	margin: 0;
+	text-decoration: underline;
+	font-family:"Brush Script MT";
+	font-size:300%;
+	text-align:center;
+}
+#helpHint {
+	position:fixed;
+	bottom:2%;
+	left:46%;
+	pointer-events: none;
+}

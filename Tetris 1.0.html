@@ -1,0 +1,203 @@
+﻿<!DOCTYPE html>
+
+<head>
+	<meta charset="utf-8"/>
+	<title>Tetris</title>
+
+	<script src="./js/webgl-fmi.js"></script>
+	<script src="./js/TetrisBricks.js"></script>
+	<script src="./js/shaders-tetris.js"></script>
+	<script src="./js/skybox.js"></script>
+	<link rel="stylesheet" type="text/css" href="stylesheet.css">
+	<script>
+		var locked;
+		document.addEventListener('keydown', event => {
+			if(event.keyCode!=116&&event.keyCode!=123)	event.preventDefault();
+			if(gameOver&&event.keyCode==82) restart();
+			if(!gameOver)
+			switch(event.keyCode){
+				case 27:
+				locked = false;
+				canvas.exitPointerLock();
+				break;
+				case 65:
+				if(board.check(false,false,1))
+					board.activePiece.moveSide(1);
+				 break;
+				case 81:
+					board.rotate(1);
+					break;
+				case 69:
+					board.rotate(0);
+					break;
+				case 68:
+				if(board.check(false,false,2))
+					board.activePiece.moveSide(0);
+				break;
+				case 83:
+					board.moveDown();
+				break;
+				case 32:
+				board.hardDrop();
+				break;	
+				case 72:
+					if(pause){
+						old = Date.now();
+						pause = false;
+						document.getElementById("help").style.visibility = "hidden";
+					}
+					else{
+						old = Date.now();
+						pause = true;
+						document.getElementById("help").style.visibility = "visible";
+					}
+				break;
+				case 173:	
+					if(viewD+5<300) viewD+=5;
+				break;
+				case 61:
+					if(viewD-5>30) viewD-=5;
+				break;
+			}
+		} );
+		restart = () =>{
+			gameOver = false;
+			document.getElementById("gameOver").style.visibility = "hidden";
+			board = new Game();
+			scoreboard.innerHTML = "Score:0";
+			document.getElementById("helpHint").innerHTML ="(Press H for help)";
+		}
+		function mouseMove(event)
+		{
+				var dX = event.movementX,dY = event.movementY;
+				viewA += dX/100;
+				viewB += dY/150;
+				if (viewB>Math.PI/7) viewB=Math.PI/7;
+				if (viewB<0) viewB=0;
+			startX = (event.clientX-gl.canvas.offsetLeft-gl.canvas.offsetWidth/2);
+			startY = (-event.clientY+gl.canvas.offsetTop+gl.canvas.offsetHeight/2);
+		}
+		function mouseWheel(event){
+			if((viewD+(event.deltaY/100)<900)&&(viewD+(event.deltaY/100)>30))
+			viewD+=event.deltaY/100;
+		}
+		function DOMmouseWheel(event){
+		if((viewD+(event.detail)<900)&&(viewD+(event.detail)>20))
+			viewD+=event.detail;
+		}
+		function start( )
+		{
+			var	canvas = document.getElementById("picasso");
+			canvas.addEventListener('webglcontextlost',function(event){event.preventDefault();},false);
+			canvas.addEventListener('webglcontextrestored',function(){init();},false);
+			canvas.addEventListener('mousemove',mouseMove,false);
+			canvas.addEventListener('mousewheel',mouseWheel,false);
+			canvas.addEventListener('DOMMouseScroll',DOMmouseWheel,false);
+			canvas.addEventListener('mousedown',()=>{if(!locked)canvas.requestPointerLock();locked = true;},false);
+			canvas.width  = window.innerWidth ;
+			canvas.height = window.innerHeight;
+			canvas.display =  "block";
+			init();
+			//drawFrame();
+		}
+		
+		function init()
+		{
+			gl = getContext("picasso");
+			glprog = getProgram(vShader,fShader);
+			getVariables();
+			
+			scoreboard = document.getElementById("score");
+			board = new Game();
+			base = new Cylinder([0,0,0],3,900);
+			ceil = new Cylinder([0,0,-136],3,120);
+			// използваме модул №0 за текстури
+			gl.uniform1i(uSampler, 0);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.uniform1i(uTexUnit, 1);
+			m = texIdentity();
+			texScale(m,[1,150]);
+			base.texMatrix = m;
+			l = texIdentity();
+			texScale(l,[1,20]);
+			ceil.texMatrix = l;
+			base.color = [0.8,0.945,0.83];
+			ceil.color = base.color;
+			texIdentity();
+			
+			gl.enable(gl.DEPTH_TEST);
+			gl.clearColor(1,1,1,1);
+			
+			identity();
+			perspective(30,gl.canvas.width/gl.canvas.height,1,40000);
+			
+			sky = new Skybox([0,0,0],1000);
+			gl.activeTexture(gl.TEXTURE1);
+			sky.texture = texture3D();
+			loadTexture3D(sky.texture,gl.TEXTURE_CUBE_MAP_POSITIVE_X,'./textures/posx.png');
+			loadTexture3D(sky.texture,gl.TEXTURE_CUBE_MAP_NEGATIVE_X,'./textures/negx.png');
+			loadTexture3D(sky.texture,gl.TEXTURE_CUBE_MAP_POSITIVE_Y,'./textures/posy.png');
+			loadTexture3D(sky.texture,gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,'./textures/negy.png');
+			loadTexture3D(sky.texture,gl.TEXTURE_CUBE_MAP_POSITIVE_Z,'./textures/posz.png');
+			loadTexture3D(sky.texture,gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,'./textures/negz.png');
+			
+			base.texture = loadTexture('./textures/rustpaint.jpg');
+			ceil.texture = base.texture;
+			blockTexture = loadTexture("./textures/block.jpg",drawFrame);
+			
+			gl.uniform3f(uDiffuseColor,1,1,1);
+			gl.uniform3f(uLightDir,0,0,-1);
+			gl.uniform1i(uUseTexture,true);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.uniform1i(uUseTexture,true);
+			
+		}
+		function drawFrame()
+		{
+			if(!pause){
+				gl.activeTexture(gl.TEXTURE1);
+				gl.uniform1i(uSkybox,true);
+				sky.draw();
+				gl.activeTexture(gl.TEXTURE0);
+				gl.uniform1i(uSkybox,false);
+				time = Date.now();
+				lookAt([-viewD*cos(viewA)*cos(viewB),-viewD*sin(viewA)*cos(viewB),-viewD*sin(viewB)],[0,0,-4],[0,0,-1]);
+				gl.uniformMatrix3fv(uTexMatrix,false,texIdentity());
+				board.draw();
+				ceil.draw();
+				base.draw();
+				if(!gameOver){
+					if(time-old>1000){
+						old = time;
+						board.passTurn();
+					}
+				}
+			}
+							requestAnimationFrame(drawFrame);
+		}
+	</script>	
+</head>
+
+<body onload="start()">
+	<noscript>
+		Искаме JavaScript, но няма!
+	</noscript>
+	<canvas id="picasso" width="600" height="400" top=0 right=0 position="absolute">
+		Искаме canvas, но няма!
+	</canvas>
+	<div position="absolute" id="score-div"><p id="score">Score:0<p id="helpHint">(press H for help)</p></div>
+	<p id="gameOver">Game Over!</p>
+	<div id="div-help">
+		<div id="help">
+		<h1 id="header">Help</h1>
+		<ul>
+		<li>Camera movement - the camera is rotated by moving the mouse or touchpad. Zooming in and out is done by the mouse scroll or the '-' and '=' keys</li>
+		<li>Moving - tetrominoes move with the A and D keys. The S key brings them one brick down and the Space performs a hard fall - awards points but is risky!</li>
+		<li>Rotating - rotating tetrominoes is done with the Q and E keys for both directions.</li>
+		<li>Points - points are awarded by performing a Hard Fall and eliminating rows by filling them up. The more rows eliminated at once the bigger the score.</li>
+		</ul>
+		</ul>
+		Press H again to resume
+		</div>
+	</div>
+</body>
